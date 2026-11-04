@@ -75,7 +75,7 @@ export class Renderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.antialias, powerPreference: 'high-performance', preserveDrawingBuffer: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 0.95;
     this.renderer.info.autoReset = false;
     this.scene.fog = new THREE.Fog(0xbfe3f5, 400, quality.far);
     this.applyQuality(quality);
@@ -98,7 +98,7 @@ export class Renderer {
       this.renderPass = new RenderPass(this.scene, this.camera);
       this.composer.addPass(this.renderPass);
       if (q.bloom) {
-        this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.45, 0.5, 0.86);
+        this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.32, 0.45, 0.93);
         this.composer.addPass(this.bloom);
       }
       if (q.grade) {
