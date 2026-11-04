@@ -322,7 +322,6 @@ export class Game {
     const s = this.state!;
     if (!s.docked) return { ok: false, reason: 'You must be docked to trade.' };
     const market = s.markets[s.docked];
-    const before = s.coins;
     const ctx = this.tradeContext();
     const r = buying ? buy(market, s.docked, good, qty, ctx) : sell(market, s.docked, good, qty, ctx);
     if (r.ok) {
@@ -338,9 +337,6 @@ export class Game {
       }
       s.stats.goodsTraded += qty;
       this.audio.coin();
-      if (!buying && r.total - before > 0) {
-        /* noop: coins already updated */
-      }
     } else this.audio.error();
     return r;
   }

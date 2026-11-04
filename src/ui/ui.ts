@@ -12,7 +12,7 @@ import { LANDMARK_BY_ID, PORTS, PORT_BY_ID, type PortId } from '../sim/ports';
 import { SLOTS, type SlotId } from '../sim/save';
 import { dayOf, type Emblem, type Paint, type PaintPattern } from '../sim/state';
 import { FRAGMENTS, STORY } from '../sim/story';
-import { MAX_UPGRADE_LEVEL, UPGRADES, computeStats, upgradeCost } from '../sim/upgrades';
+import { MAX_UPGRADE_LEVEL, UPGRADES, upgradeCost } from '../sim/upgrades';
 import { MAX_ACTIVE_CONTRACTS } from '../sim/contracts';
 import { WorldMap } from './map';
 import { clear, h, hex } from './dom';
@@ -735,7 +735,6 @@ export class UI {
         ].map(([k, v]) => h('div', {}, h('span', { class: 'muted' }, k + ': '), v)),
       ),
     );
-    void computeStats;
   }
 
   private renderPaint(body: HTMLElement): void {
@@ -806,7 +805,6 @@ export class UI {
 
   private buildHud(): HTMLElement {
     const e = this.els;
-    const box = (id: string, cls = '') => (e[id] = h('div', { id, class: `hud-box ${cls}` }));
     const hud = h('div', { id: 'hud' });
     e.coins = h('div', { class: 'coins coin', 'data-testid': 'hud-coins' });
     e.clock = h('div', { class: 'clock' });
@@ -842,7 +840,6 @@ export class UI {
     e.fps = h('div', { id: 'fps', class: 'hidden' });
     e.hint = h('div', { id: 'hint', class: 'hud-box hidden' });
     hud.append(tl, compass, tr, bl, br, e.prompt, guns, e.marker, e.fps, e.hint);
-    void box;
     return hud;
   }
 
