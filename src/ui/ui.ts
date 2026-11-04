@@ -642,13 +642,13 @@ export class UI {
           { style: 'white-space:nowrap' },
           h('button', { class: 'btn small', 'data-testid': `buy-${good.id}`, disabled: maxBuy < 1, onclick: act(1, true) }, 'Buy'),
           ' ',
-          h('button', { class: 'btn small', disabled: maxBuy < 2, onclick: act(Math.min(5, maxBuy), true) }, `+${Math.max(2, Math.min(5, maxBuy))}`),
+          h('button', { class: 'btn small opt', disabled: maxBuy < 2, onclick: act(Math.min(5, maxBuy), true) }, `+${Math.max(2, Math.min(5, maxBuy))}`),
           ' ',
-          h('button', { class: 'btn small', disabled: maxBuy < 1, onclick: act(maxBuy, true) }, 'Max'),
+          h('button', { class: 'btn small opt', disabled: maxBuy < 1, onclick: act(maxBuy, true) }, 'Max'),
           ' ',
           h('button', { class: 'btn small', 'data-testid': `sell-${good.id}`, disabled: held < 1, onclick: act(1, false) }, 'Sell'),
           ' ',
-          h('button', { class: 'btn small', disabled: held < 1, onclick: act(held, false) }, 'All'),
+          h('button', { class: 'btn small opt', disabled: held < 1, onclick: act(held, false) }, 'All'),
         ),
       );
     });
@@ -886,7 +886,7 @@ export class UI {
     // Prompt.
     const dock = d.dockPrompt;
     e.prompt.classList.toggle('hidden', !dock || docked);
-    if (dock) e.prompt.textContent = `Press ${this.keyFor('interact')} to dock at ${PORT_BY_ID[dock].name}`;
+    if (dock) e.prompt.textContent = document.body.classList.contains('touch') ? `Tap \u2693 to dock at ${PORT_BY_ID[dock].name}` : `Press ${this.keyFor('interact')} to dock at ${PORT_BY_ID[dock].name}`;
     // Objective.
     e.objText.textContent = d.objective;
     e.objSub.textContent = d.marker ? `${d.marker.label} · ${Math.round(d.marker.dist)} spans` : d.nearPortName ? `Near ${d.nearPortName}` : '';
@@ -1061,8 +1061,8 @@ export class UI {
       btn('◀', 'right:168px;bottom:24px', () => inp.press('firePort')),
       btn('▶', 'right:24px;bottom:24px', () => inp.press('fireStarboard')),
       btn('⚓', 'right:24px;bottom:104px', () => inp.press('interact')),
-      btn('\u{1F5FA}', 'left:24px;top:110px', () => this.toggleMap()),
-      btn('☰', 'left:24px;top:176px', () => this.togglePause()),
+      btn('\u{1F5FA}', 'left:12px;top:200px', () => this.toggleMap()),
+      btn('☰', 'left:12px;top:266px', () => this.togglePause()),
     );
     return t;
   }
