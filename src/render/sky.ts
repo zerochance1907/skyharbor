@@ -199,7 +199,7 @@ export class Sky {
     this.sun.intensity = (elev > -0.05 ? sunI : 0.35 * (1 - overcast * 0.6)) + flash * 2.5;
     this.hemi.color.copy(amb);
     this.hemi.groundColor.copy(amb).multiplyScalar(0.45);
-    this.hemi.intensity = lerp(1.0, 0.55, night) + flash;
+    this.hemi.intensity = lerp(1.0, 0.9, night) + flash;
     return this.info;
   }
 }

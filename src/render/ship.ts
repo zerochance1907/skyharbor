@@ -162,10 +162,10 @@ export class ShipModel {
       solid.add(new THREE.TorusGeometry(k + 0.1, 0.18, 4, 18), paint.trim, mat(0, 9, z));
     }
     const finC = paint.sail;
-    solid.add(new THREE.BoxGeometry(0.4, 6, 6), finC, mat(0, 13.5, 14.5, -0.3, 0, 0));
-    solid.add(new THREE.BoxGeometry(0.4, 5, 5.4), finC, mat(0, 4.6, 14.5, 0.3, 0, 0));
-    solid.add(new THREE.BoxGeometry(6, 0.4, 5.4), finC, mat(-4.6, 9, 14.5, 0, 0, 0.1));
-    solid.add(new THREE.BoxGeometry(6, 0.4, 5.4), finC, mat(4.6, 9, 14.5, 0, 0, -0.1));
+    solid.add(new THREE.BoxGeometry(0.35, 4.6, 5), finC, mat(0, 12.6, 14.2, -0.35, 0, 0));
+    solid.add(new THREE.BoxGeometry(0.35, 3.8, 4.4), finC, mat(0, 5.4, 14.2, 0.35, 0, 0));
+    solid.add(new THREE.BoxGeometry(4.4, 0.35, 4.4), finC, mat(-4, 9, 14.2, 0, 0, 0.12));
+    solid.add(new THREE.BoxGeometry(4.4, 0.35, 4.4), finC, mat(4, 9, 14.2, 0, 0, -0.12));
 
     // Emblem decals.
     if (paint.emblem !== 'none') {

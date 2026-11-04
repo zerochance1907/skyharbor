@@ -647,6 +647,7 @@ export class Game {
   // ------------------------------------------------------------------ frame
 
   private frame(now: number): void {
+    const cpuStart = performance.now();
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.time += dt;
@@ -671,7 +672,7 @@ export class Game {
       if (steps === 6) this.acc = 0;
     }
     this.updateVisuals(dt, pad);
-    this.updateMs = this.updateMs * 0.9 + (performance.now() - now) * 0.1;
+    this.updateMs = this.updateMs * 0.9 + (performance.now() - cpuStart) * 0.1;
     this.renderer.render();
     // The DOM HUD refreshes at ~30 Hz; the 3D view runs at full rate.
     if (s && this.frameCount % 2 === 0) this.ui.updateHud(this.hudData());
@@ -1140,6 +1141,11 @@ export class Game {
       this.chase.orbitPitch = 0.16;
       this.chase.update(shipPos, 0, 0, false, dt, null, this.time);
     }
+    // While docked on wide screens, frame the ship in the space left of the port panel.
+    const cam3 = this.chase.camera;
+    const W = window.innerWidth;
+    if (this.mode === 'docked' && W > 900) cam3.setViewOffset(W, window.innerHeight, Math.min(380, W * 0.28), 0, W, window.innerHeight);
+    else if (cam3.view?.enabled) cam3.clearViewOffset();
     const cam = this.chase.camera.position;
 
     // Sky, light, fog.
@@ -1150,8 +1156,8 @@ export class Game {
     const nightFar = lerp(q.far, q.far * 0.55 + this.stats.lanternRange * 1.5, info.night);
     fog.far = lerp(nightFar, nightFar * 0.45, storm);
     fog.near = lerp(380, 120, storm);
-    const lit = new THREE.Color(1, 1, 1).multiplyScalar(lerp(1, 0.22, info.night) * (1 - storm * 0.5)).lerp(info.sunColor, 0.25 * (1 - info.night));
-    const shadow = lit.clone().multiply(new THREE.Color(0.66, 0.72, 0.86)).lerp(info.horizon, 0.2);
+    const lit = new THREE.Color(0.97, 0.97, 0.97).multiplyScalar(lerp(1, 0.3, info.night) * (1 - storm * 0.5)).lerp(info.sunColor, 0.3 * (1 - info.night));
+    const shadow = lit.clone().multiply(new THREE.Color(0.58, 0.64, 0.8)).lerp(info.horizon, 0.12);
     this.clouds.update(cam, this.time, this.windNow.x, this.windNow.z, lit, shadow, info.horizon, storm, dt);
     this.islands.update(cam, 4, this.time, info.horizon);
     updateStructures(this.time, info.night);
