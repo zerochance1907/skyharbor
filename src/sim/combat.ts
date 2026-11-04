@@ -90,6 +90,8 @@ export interface Target {
   z: number;
   id: number;
   team: 'player' | 'enemy';
+  /** Hit radius; defaults to HIT_RADIUS. */
+  r?: number;
 }
 
 export interface Hit {
@@ -111,7 +113,8 @@ export function stepBalls(balls: Cannonball[], targets: Target[], dt: number): H
     for (const t of targets) {
       if (t.team === b.owner) continue;
       const d2 = (t.x - b.x) ** 2 + (t.y - b.y) ** 2 + (t.z - b.z) ** 2;
-      if (d2 < HIT_RADIUS * HIT_RADIUS) {
+      const r = t.r ?? HIT_RADIUS;
+      if (d2 < r * r) {
         hits.push({ ball: b, targetId: t.id });
         hit = true;
         break;

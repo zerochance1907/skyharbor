@@ -82,7 +82,7 @@ export function generateOffers(world: World, port: PortId, day: number, nowHours
       const d = rng.range(700, 1700);
       const x = from.x + Math.cos(a) * d;
       const z = from.z + Math.sin(a) * d;
-      const y = rng.range(90, 260);
+      const y = world.clearAltitude(x, rng.range(90, 260), z, 40);
       const name = rng.pick(SALVAGE_NAMES);
       out.push({
         id,
