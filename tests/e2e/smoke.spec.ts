@@ -35,13 +35,21 @@ test('boot, new voyage, fly, dock, trade with no console errors', async ({ page 
   await page.keyboard.down('KeyA');
   await page.keyboard.down('Space');
   await page.waitForFunction(() => window.__skyharbor.state()!.ship.throttle > 0.5, null, { timeout: 60_000 });
-  await page.waitForTimeout(1500);
+  // Software WebGL in CI can run slowly, so wait for real movement instead of a fixed time.
+  await page.waitForFunction(
+    ([x, z]) => {
+      const s = window.__skyharbor.state()!.ship;
+      return Math.hypot(s.x - x, s.z - z) > 8;
+    },
+    [start.x, start.z],
+    { timeout: 90_000 },
+  );
   await page.keyboard.up('KeyA');
   await page.keyboard.up('Space');
   await page.keyboard.up('KeyW');
   const moved = await ship(page);
   const dist = Math.hypot(moved.x - start.x, moved.z - start.z);
-  expect(dist).toBeGreaterThan(2);
+  expect(dist).toBeGreaterThan(8);
   expect(moved.y).toBeGreaterThan(start.y);
   expect(moved.heading).not.toBeCloseTo(start.heading, 3);
 
