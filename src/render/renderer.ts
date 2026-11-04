@@ -76,6 +76,7 @@ export class Renderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    this.renderer.info.autoReset = false;
     this.scene.fog = new THREE.Fog(0xbfe3f5, 400, quality.far);
     this.applyQuality(quality);
     window.addEventListener('resize', () => this.resize());
@@ -127,6 +128,7 @@ export class Renderer {
   }
 
   render(): void {
+    this.renderer.info.reset();
     if (this.composer) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
   }

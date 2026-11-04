@@ -8,6 +8,7 @@ import { Rng, hashInts, hashString } from '../core/rng';
 import { clamp, smoothstep, TAU } from '../core/math';
 import { BIOMES, type BiomeId } from './biomes';
 import { LANDMARKS, PORTS, type PortId } from './ports';
+import { FRAGMENTS } from './story';
 
 export const CHUNK_SIZE = 700;
 /** Top of the endless cloud sea. Below this the Undercloud crushes hulls. */
@@ -224,7 +225,15 @@ export class World {
       const keepOut = f.kind === 'port' ? 260 : 160;
       if (Math.hypot(f.x - x, f.z - z) < f.radius + radius + keepOut) return false;
     }
+    // Compass shards float in open sky, never buried in rock.
+    for (const f of FRAGMENTS) if (Math.hypot(f.x - x, f.z - z) < radius + 50) return false;
     return true;
+  }
+
+  /** Nudge a point upward until a sphere of radius r there is clear of islands. */
+  clearAltitude(x: number, y: number, z: number, r: number): number {
+    for (let i = 0; i < 40 && this.collide(x, y, z, r); i++) y += 25;
+    return y;
   }
 
   /** All islands whose chunk lies within `range` of (x, z). */

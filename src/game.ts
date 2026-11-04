@@ -125,6 +125,8 @@ export class Game {
   private nearPort: { id: PortId; dist: number } | null = null;
   private smokeTimer = 0;
   private tmpV = new THREE.Vector3();
+  /** Smoothed CPU time of simulation + scene update per frame (excludes GPU). */
+  updateMs = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.settings = loadSettings();
@@ -448,12 +450,13 @@ export class Game {
   canDock(): PortId | null {
     const s = this.state;
     if (!s || this.mode !== 'play' || this.dockAnim) return null;
-    if (!this.nearPort) return null;
-    const p = PORT_BY_ID[this.nearPort.id];
-    const b = berthPosition(p);
-    const d = dist3(s.ship.x, s.ship.y, s.ship.z, b.x, b.y, b.z);
     const speed = Math.hypot(s.ship.vx, s.ship.vz);
-    return d < DOCK_RANGE && speed < 34 ? p.id : null;
+    if (speed >= 34) return null;
+    for (const p of PORTS) {
+      const b = berthPosition(p);
+      if (dist3(s.ship.x, s.ship.y, s.ship.z, b.x, b.y, b.z) < DOCK_RANGE) return p.id;
+    }
+    return null;
   }
 
   dock(port: PortId): void {
@@ -668,8 +671,10 @@ export class Game {
       if (steps === 6) this.acc = 0;
     }
     this.updateVisuals(dt, pad);
+    this.updateMs = this.updateMs * 0.9 + (performance.now() - now) * 0.1;
     this.renderer.render();
-    if (s) this.ui.updateHud(this.hudData());
+    // The DOM HUD refreshes at ~30 Hz; the 3D view runs at full rate.
+    if (s && this.frameCount % 2 === 0) this.ui.updateHud(this.hudData());
     this.ui.updateFps(this.settings.showFps ? this.fps : null);
   }
 
@@ -787,7 +792,10 @@ export class Game {
     }
     if (this.input.consume('interact')) {
       const port = this.canDock();
-      if (port) this.dock(port);
+      if (port) {
+        this.nearPort = { id: port, dist: 0 };
+        this.dock(port);
+      }
     }
 
     // Discovery and charting.
@@ -874,7 +882,7 @@ export class Game {
 
     // Cannonballs and hits.
     const targets: Target[] = [{ x: s.ship.x, y: s.ship.y, z: s.ship.z, id: PLAYER_ID, team: 'player' }];
-    for (const n of this.npcs) if (n.state !== 'sinking') targets.push({ x: n.x, y: n.y, z: n.z, id: n.id, team: n.role === 'merchant' ? 'player' : 'enemy' });
+    for (const n of this.npcs) if (n.state !== 'sinking') targets.push({ x: n.x, y: n.y, z: n.z, id: n.id, team: n.role === 'merchant' ? 'player' : 'enemy', r: n.role === 'flagship' ? 19 : undefined });
     const hits = stepBalls(this.balls, targets, dt);
     for (const h of hits) this.onHit(h.targetId, h.ball.damage, h.ball);
     for (let i = this.balls.length - 1; i >= 0; i--) {
@@ -1317,6 +1325,22 @@ export class Game {
         this.chase.snap();
       },
       fps: () => this.fps,
+      info: () => ({ calls: this.renderer.renderer.info.render.calls, triangles: this.renderer.renderer.info.render.triangles, updateMs: this.updateMs, npcs: this.npcs.length }),
+      spawnPirates: (n: number, flagship = false) => this.spawnPirates(n, flagship),
+      fire: (side: number) => this.playerFire(side),
+      setStep: (step: number) => {
+        if (this.state) this.state.story.step = step;
+      },
+      collectShards: (n: number) => {
+        const s = this.state;
+        if (!s) return;
+        for (const f of FRAGMENTS.slice(0, n)) {
+          s.ship.x = f.x;
+          s.ship.y = f.y;
+          s.ship.z = f.z;
+          this.simulate(STEP, null);
+        }
+      },
       islands: () => this.islands.loadedIslands,
       seedHash: (s: string) => hashString(s),
     };
