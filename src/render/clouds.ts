@@ -87,6 +87,21 @@ void main() {
   gl_FragColor = vec4(col, a);
 }`;
 
+/**
+ * Fill `order` with indices of `xyz` (packed x,y,z triples) sorted farthest
+ * first from the camera, so alpha-blended billboards composite correctly.
+ */
+export function backToFrontOrder(xyz: Float32Array, count: number, cx: number, cy: number, cz: number, order: Uint32Array, dist: Float32Array): void {
+  for (let i = 0; i < count; i++) {
+    const dx = xyz[i * 3] - cx;
+    const dy = xyz[i * 3 + 1] - cy;
+    const dz = xyz[i * 3 + 2] - cz;
+    dist[i] = dx * dx + dy * dy + dz * dz;
+    order[i] = i;
+  }
+  order.subarray(0, count).sort((a, b) => dist[b] - dist[a]);
+}
+
 export interface CloudQuality {
   layers: number;
   clusters: number;
@@ -108,6 +123,11 @@ export class Clouds {
   private v = new THREE.Vector3();
   private sv = new THREE.Vector3();
   private far = 3000;
+  private puffs: { cl: number; ox: number; oy: number; oz: number; s: number; lit: number }[] = [];
+  private puffPos = new Float32Array(0);
+  private puffOrder = new Uint32Array(0);
+  private puffDist = new Float32Array(0);
+  private puffTint: THREE.InstancedBufferAttribute | null = null;
 
   constructor(scene: THREE.Scene, quality: CloudQuality) {
     this.noise = makeNoiseTexture(256, 1234);
@@ -203,10 +223,15 @@ export class Clouds {
       total += n;
       this.clusters.push(cluster);
     }
+    this.puffs = [];
+    this.clusters.forEach((cl, ci) => cl.puffs.forEach((p) => this.puffs.push({ cl: ci, ...p })));
+    this.puffPos = new Float32Array(total * 3);
+    this.puffOrder = new Uint32Array(total);
+    this.puffDist = new Float32Array(total);
     const geo = new THREE.PlaneGeometry(1, 1);
-    const tint = new Float32Array(total * 3);
-    for (const cl of this.clusters) cl.puffs.forEach((p, i) => (tint[(cl.start + i) * 3] = p.lit));
-    geo.setAttribute('instanceTint', new THREE.InstancedBufferAttribute(tint, 3));
+    this.puffTint = new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3);
+    this.puffTint.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('instanceTint', this.puffTint);
     const mat = new THREE.ShaderMaterial({
       vertexShader: puffVert,
       fragmentShader: puffFrag,
@@ -218,19 +243,35 @@ export class Clouds {
     this.puffMesh = new THREE.InstancedMesh(geo, mat, total);
     this.puffMesh.frustumCulled = false;
     this.puffMesh.renderOrder = 5;
+    this.puffMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.group.add(this.puffMesh);
-    for (const cl of this.clusters) this.writeCluster(cl);
+    this.writePuffs(new THREE.Vector3());
   }
 
-  private writeCluster(cl: (typeof this.clusters)[number]): void {
-    if (!this.puffMesh) return;
-    cl.puffs.forEach((p, i) => {
-      this.v.set(cl.x + p.ox, cl.y + p.oy, cl.z + p.oz);
-      this.sv.setScalar(p.s);
+  /** Write every puff instance sorted back to front from the camera. */
+  private writePuffs(cam: THREE.Vector3): void {
+    const mesh = this.puffMesh;
+    if (!mesh || !this.puffTint) return;
+    const n = this.puffs.length;
+    for (let i = 0; i < n; i++) {
+      const p = this.puffs[i];
+      const cl = this.clusters[p.cl];
+      this.puffPos[i * 3] = cl.x + p.ox;
+      this.puffPos[i * 3 + 1] = cl.y + p.oy;
+      this.puffPos[i * 3 + 2] = cl.z + p.oz;
+    }
+    backToFrontOrder(this.puffPos, n, cam.x, cam.y, cam.z, this.puffOrder, this.puffDist);
+    const tint = this.puffTint.array as Float32Array;
+    for (let slot = 0; slot < n; slot++) {
+      const i = this.puffOrder[slot];
+      this.v.set(this.puffPos[i * 3], this.puffPos[i * 3 + 1], this.puffPos[i * 3 + 2]);
+      this.sv.setScalar(this.puffs[i].s);
       this.m.compose(this.v, this.q, this.sv);
-      this.puffMesh!.setMatrixAt(cl.start + i, this.m);
-    });
-    this.puffMesh.instanceMatrix.needsUpdate = true;
+      mesh.setMatrixAt(slot, this.m);
+      tint[slot * 3] = this.puffs[i].lit;
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    this.puffTint.needsUpdate = true;
   }
 
   update(cam: THREE.Vector3, time: number, windX: number, windZ: number, lit: THREE.Color, shadow: THREE.Color, fog: THREE.Color, storm: number, dt: number): void {
@@ -258,12 +299,11 @@ export class Clouds {
     for (const cl of this.clusters) {
       cl.x += windX * dt * 0.8;
       cl.z += windZ * dt * 0.8;
-      let moved = Math.abs(windX) + Math.abs(windZ) > 0.01;
-      if (cl.x - cam.x > half) (cl.x -= this.wrap), (moved = true);
-      else if (cl.x - cam.x < -half) (cl.x += this.wrap), (moved = true);
-      if (cl.z - cam.z > half) (cl.z -= this.wrap), (moved = true);
-      else if (cl.z - cam.z < -half) (cl.z += this.wrap), (moved = true);
-      if (moved) this.writeCluster(cl);
+      if (cl.x - cam.x > half) cl.x -= this.wrap;
+      else if (cl.x - cam.x < -half) cl.x += this.wrap;
+      if (cl.z - cam.z > half) cl.z -= this.wrap;
+      else if (cl.z - cam.z < -half) cl.z += this.wrap;
     }
+    this.writePuffs(cam);
   }
 }

@@ -36,3 +36,13 @@ describe('island quality presets', () => {
     expect(r.setQuality({ ...LOW, chunkRadius: 2 })).toBe(0);
   });
 });
+
+describe('cloud puff sorting', () => {
+  it('orders billboards farthest first', async () => {
+    const { backToFrontOrder } = await import('../../src/render/clouds');
+    const xyz = new Float32Array([10, 0, 0, 300, 0, 0, -50, 0, 0, 0, 200, 0]);
+    const order = new Uint32Array(4);
+    backToFrontOrder(xyz, 4, 0, 0, 0, order, new Float32Array(4));
+    expect([...order]).toEqual([1, 3, 2, 0]);
+  });
+});
