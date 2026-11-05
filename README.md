@@ -16,9 +16,24 @@ Cartographers' Guild.
 | ![Storm and lightning](docs/screenshots/storm.jpg) | ![Broadside combat](docs/screenshots/combat.jpg) |
 | ![Port market](docs/screenshots/market.jpg) | ![Shipwright upgrades](docs/screenshots/shipwright.jpg) |
 | ![World map with fog of war](docs/screenshots/map.jpg) | ![Story dialogue](docs/screenshots/story.jpg) |
+| ![Harbour gossip trade tip (1.1)](docs/screenshots/market-tip.jpg) | ![Questline finale (1.1 play-test)](docs/screenshots/ending.jpg) |
 
 Every model, texture, melody and sound is generated in code. The game ships no image, model or
 audio files. See [CREDITS.md](CREDITS.md).
+
+## What's new in 1.1
+
+- Corsairs and escorted merchants steer around islands with look-ahead avoidance instead of
+  being shoved out of terrain.
+- Changing the quality preset rebuilds islands that are already loaded.
+- New game, loading a save, a shipwreck tow and teleports fade in from black after the
+  surrounding chunks are built and shaders compiled, so there is no streaming hitch.
+- Cloud puffs are sorted back to front every frame, so overlapping clouds blend correctly.
+- First-voyage help: the market shows a profitable short-hop trade, and one-off hints cover
+  docking, the chart, aether, repairs, upgrades and contracts.
+- Contracts only go to nearby ports, so early jobs are flyable.
+- `node scripts/playtest.mjs [outDir]` plays the game end to end (with `npm run preview`
+  running) and saves screenshots.
 
 ## Features
 

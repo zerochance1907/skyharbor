@@ -41,7 +41,7 @@ import {
   type Npc,
   type Target,
 } from './sim/combat';
-import { buy, cargoUsed, driftMarkets, sell, FUEL_PRICE, REPAIR_PRICE, type TradeResult } from './sim/economy';
+import { buy, cargoUsed, driftMarkets, nearbyTrade, sell, FUEL_PRICE, REPAIR_PRICE, type TradeResult } from './sim/economy';
 import { stepFlight, forwardOf, rightOf, airSpeed, type FlightInput } from './sim/flight';
 import { GOOD_BY_ID, GOOD_IDS, type GoodId } from './sim/goods';
 import { LANDMARK_BY_ID, PORTS, PORT_BY_ID, approachPosition, berthPosition, type PortId } from './sim/ports';
@@ -1399,6 +1399,7 @@ export class Game {
       islands: () => this.islands.loadedIslands,
       storyObjective: () => (this.state ? STORY[this.state.story.step].objective : null),
       landmark: (id: string) => LANDMARK_BY_ID[id],
+      tradeTip: () => (this.state?.docked ? nearbyTrade(this.state.markets, this.state.docked) : null),
       seedHash: (s: string) => hashString(s),
     };
   }

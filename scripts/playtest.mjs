@@ -66,13 +66,20 @@ await shot('03-port-market');
 // First trade loop: buy the cheapest-looking good, sell at Thistlewick.
 const goods = await H(() => [...document.querySelectorAll('[data-testid^="buy-"]')].filter((b) => !b.disabled).map((b) => b.dataset.testid.slice(4)));
 log('buyable goods', goods);
-const g = goods[0];
+const tipText = await page.getByTestId('trade-tip').textContent().catch(() => null);
+log('trade tip', tipText);
+const tip = await H(() => {
+  const g = window.__skyharbor.game;
+  return g.state ? window.__skyharbor.tradeTip?.() : null;
+});
+const g = tip?.good ?? goods[0];
+const dest = tip?.to ?? 'thistlewick';
 for (let i = 0; i < 6; i++) await page.getByTestId(`buy-${g}`).click();
 s = await st();
 log('bought', s.cargo[g], g, 'coins', s.coins);
 const coinsBefore = s.coins;
-await dock('thistlewick');
-await shot('04-thistlewick');
+await dock(dest);
+await shot('04-sell-port');
 for (let i = 0; i < 6; i++) {
   const b = page.getByTestId(`sell-${g}`);
   if (await b.isDisabled()) break;
@@ -123,7 +130,7 @@ await H(() => {
 await page.waitForTimeout(1500);
 await H(() => window.__skyharbor.spawnPirates(1));
 let sunk = false;
-for (let i = 0; i < 80 && !sunk; i++) {
+for (let i = 0; i < 160 && !sunk; i++) {
   // Park the pirate abeam to starboard and fire with E.
   await H(() => {
     const g = window.__skyharbor.game;
@@ -176,6 +183,8 @@ for (let guard = 0; guard < 20; guard++) {
     await page.waitForTimeout(800);
     await closeDialogs();
   } else if (kind === 'flagship') {
+    // Debug assist: a 260-hull flagship takes minutes under software WebGL.
+    await H(() => { window.__skyharbor.game.stats.cannonDamage = 120; });
     await page.waitForTimeout(6000);
     for (let i = 0; i < 60; i++) {
       const done = await H(() => {

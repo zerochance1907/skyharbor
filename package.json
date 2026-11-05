@@ -1,7 +1,7 @@
 {
   "name": "skyharbor",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "An original 3D low-poly airship exploration and trading game for the browser.",
   "type": "module",
   "license": "MIT",
