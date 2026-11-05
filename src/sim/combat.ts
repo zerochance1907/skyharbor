@@ -184,7 +184,50 @@ export function headingTo(x: number, z: number, tx: number, tz: number): number 
   return Math.atan2(-(tx - x), -(tz - z));
 }
 
-function steer(n: Npc, targetHeading: number, targetSpeed: number, targetY: number, dt: number): void {
+/** Returns true when a point is inside terrain (plus the caller's margin). */
+export type Blocked = (x: number, y: number, z: number) => boolean;
+
+const AVOID_OFFSETS = [0.35, 0.7, 1.05, 1.4, 1.8, 2.3];
+
+/** True when the straight path along `heading` is clear for `range` units. */
+export function pathClear(x: number, y: number, z: number, heading: number, range: number, blocked: Blocked): boolean {
+  const f = forwardOf(heading);
+  for (const t of [0.3, 0.6, 1]) if (blocked(x + f.x * range * t, y, z + f.z * range * t)) return false;
+  return true;
+}
+
+/**
+ * Look-ahead obstacle avoidance. Probes the desired heading and then fans out
+ * left and right (preferring `side` first) until it finds a clear lane.
+ * When no lane is clear the ship keeps its course and climbs over.
+ */
+export function avoidHeading(
+  x: number,
+  y: number,
+  z: number,
+  desired: number,
+  speed: number,
+  side: number,
+  blocked: Blocked,
+): { heading: number; climb: number } {
+  const range = Math.max(90, speed * 3);
+  if (pathClear(x, y, z, desired, range, blocked)) return { heading: desired, climb: 0 };
+  const s = side >= 0 ? 1 : -1;
+  for (const off of AVOID_OFFSETS) {
+    for (const sign of [s, -s]) {
+      const h = wrapAngle(desired + off * sign);
+      if (pathClear(x, y, z, h, range, blocked)) return { heading: h, climb: off > 1.4 ? 20 : 0 };
+    }
+  }
+  return { heading: desired, climb: 45 };
+}
+
+function steer(n: Npc, targetHeading: number, targetSpeed: number, targetY: number, dt: number, blocked?: Blocked): void {
+  if (blocked) {
+    const a = avoidHeading(n.x, n.y, n.z, targetHeading, Math.max(targetSpeed, Math.hypot(n.vx, n.vz)), n.side, blocked);
+    targetHeading = a.heading;
+    if (a.climb) targetY = Math.max(targetY, n.y + a.climb);
+  }
   const diff = angleDiff(n.heading, targetHeading);
   n.heading = wrapAngle(n.heading + clamp(diff, -0.7 * dt, 0.7 * dt));
   const f = forwardOf(n.heading);
@@ -201,7 +244,7 @@ function steer(n: Npc, targetHeading: number, targetSpeed: number, targetY: numb
  * Pirate brain: patrol, chase into a broadside position, fire when the player
  * is abeam, flee when badly hurt. `safe` means the player is near a port.
  */
-export function stepPirate(n: Npc, px: number, py: number, pz: number, safe: boolean, dt: number, rng: Rng): NpcFire | null {
+export function stepPirate(n: Npc, px: number, py: number, pz: number, safe: boolean, dt: number, rng: Rng, blocked?: Blocked): NpcFire | null {
   if (n.state === 'sinking') {
     n.sinkTime += dt;
     n.vy = damp(n.vy, -18, 0.6, dt);
@@ -221,11 +264,11 @@ export function stepPirate(n: Npc, px: number, py: number, pz: number, safe: boo
 
   n.reload -= dt;
   if (n.state === 'patrol') {
-    steer(n, n.heading + Math.sin(n.id + n.x * 0.001) * 0.3, n.speed * 0.45, n.y, dt);
+    steer(n, n.heading + Math.sin(n.id + n.x * 0.001) * 0.3, n.speed * 0.45, n.y, dt, blocked);
     return null;
   }
   if (n.state === 'flee') {
-    steer(n, headingTo(px, pz, n.x, n.z), n.speed * 1.05, n.y + 6, dt);
+    steer(n, headingTo(px, pz, n.x, n.z), n.speed * 1.05, n.y + 6, dt, blocked);
     return null;
   }
   // Chase: aim for a point abeam of the player at broadside range.
@@ -236,7 +279,7 @@ export function stepPirate(n: Npc, px: number, py: number, pz: number, safe: boo
   const tx = px + Math.cos(orbit) * ideal;
   const tz = pz + Math.sin(orbit) * ideal;
   const speed = dist > 300 ? n.speed : n.speed * 0.75;
-  steer(n, headingTo(n.x, n.z, tx, tz), speed, py, dt);
+  steer(n, headingTo(n.x, n.z, tx, tz), speed, py, dt, blocked);
   // Fire when the player is roughly abeam on either side.
   if (n.reload <= 0 && dist < 280 && Math.abs(py - n.y) < 50) {
     const r = rightOf(n.heading);
@@ -250,7 +293,7 @@ export function stepPirate(n: Npc, px: number, py: number, pz: number, safe: boo
 }
 
 /** Merchant autopilot toward its destination. Returns true on arrival. */
-export function stepMerchant(n: Npc, dt: number): boolean {
+export function stepMerchant(n: Npc, dt: number, blocked?: Blocked): boolean {
   if (n.state === 'sinking') {
     n.sinkTime += dt;
     n.vy = damp(n.vy, -18, 0.6, dt);
@@ -265,7 +308,7 @@ export function stepMerchant(n: Npc, dt: number): boolean {
     n.vz = 0;
     return true;
   }
-  steer(n, headingTo(n.x, n.z, n.dest.x, n.dest.z), d < 250 ? n.speed * 0.5 : n.speed, n.dest.y + 30, dt);
+  steer(n, headingTo(n.x, n.z, n.dest.x, n.dest.z), d < 250 ? n.speed * 0.5 : n.speed, n.dest.y + 30, dt, d < 250 ? undefined : blocked);
   return false;
 }
 

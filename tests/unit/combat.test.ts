@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../src/core/rng';
-import { applyDamage, fireBroadside, makeMerchant, makePirate, stepBalls, stepMerchant, stepPirate, headingTo } from '../../src/sim/combat';
+import { applyDamage, avoidHeading, fireBroadside, makeMerchant, makePirate, pathClear, stepBalls, stepMerchant, stepPirate, headingTo } from '../../src/sim/combat';
 import { forwardOf } from '../../src/sim/flight';
 
 describe('combat', () => {
@@ -69,5 +69,51 @@ describe('combat', () => {
   it('headingTo agrees with forwardOf', () => {
     const h = headingTo(0, 0, 100, 0);
     expect(forwardOf(h).x).toBeCloseTo(1);
+  });
+
+  describe('look-ahead avoidance', () => {
+    // A tall cylindrical island of radius 120 centred at (0, -400).
+    const blocked = (x: number, y: number, z: number) => Math.hypot(x, z + 400) < 120 + 16 && y < 400;
+
+    it('keeps a clear heading unchanged', () => {
+      const a = avoidHeading(0, 100, 0, Math.PI / 2, 30, 1, blocked);
+      expect(a.heading).toBe(Math.PI / 2);
+      expect(a.climb).toBe(0);
+    });
+
+    it('turns away from an island straight ahead', () => {
+      const a = avoidHeading(0, 100, -200, 0, 30, 1, blocked);
+      expect(a.heading).not.toBe(0);
+      expect(pathClear(0, 100, -200, a.heading, 90, blocked)).toBe(true);
+    });
+
+    it('climbs when boxed in', () => {
+      const a = avoidHeading(0, 100, 0, 0, 30, 1, () => true);
+      expect(a.climb).toBeGreaterThan(0);
+    });
+
+    it('merchants steer around an island instead of through it', () => {
+      const m = makeMerchant(9, 0, 100, 0, { x: 0, y: 70, z: -900 }, 'c1');
+      let arrived = false;
+      let entered = false;
+      for (let i = 0; i < 60 * 200 && !arrived; i++) {
+        arrived = stepMerchant(m, 1 / 60, blocked);
+        if (Math.hypot(m.x, m.z + 400) < 120 && m.y < 400) entered = true;
+      }
+      expect(entered).toBe(false);
+      expect(arrived).toBe(true);
+    });
+
+    it('chasing pirates do not ram an island between them and the player', () => {
+      const rng = new Rng(3);
+      const p = makePirate(2, 0, 100, 0, rng);
+      p.heading = 0;
+      let entered = false;
+      for (let i = 0; i < 60 * 30; i++) {
+        stepPirate(p, 0, 100, -800, false, 1 / 60, rng, blocked);
+        if (Math.hypot(p.x, p.z + 400) < 120 && p.y < 400) entered = true;
+      }
+      expect(entered).toBe(false);
+    });
   });
 });

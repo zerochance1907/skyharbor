@@ -921,6 +921,9 @@ export class Game {
     }
   }
 
+  /** Terrain probe for NPC look-ahead avoidance (16-unit hull margin). */
+  private readonly npcBlocked = (x: number, y: number, z: number): boolean => !!this.world.collide(x, y, z, 16);
+
   private stepNpcs(dt: number): void {
     const s = this.state!;
     const safe = (this.nearPort?.dist ?? 1e9) < 650 || this.mode === 'docked';
@@ -935,7 +938,7 @@ export class Game {
         // Merchants wait for you if you fall behind, and stay put while you are docked.
         const savedSpeed = n.speed;
         if (this.mode === 'docked' || d > 420) n.speed = 0.01;
-        const arrived = stepMerchant(n, dt);
+        const arrived = stepMerchant(n, dt, this.npcBlocked);
         n.speed = savedSpeed;
         if (n.state === 'sinking') {
           if (n.sinkTime > 8) this.removeNpc(n.id);
@@ -977,8 +980,8 @@ export class Game {
         ty = merchant.y;
         tz = merchant.z;
       }
-      const fire = stepPirate(n, tx, ty, tz, safe, dt, this.rng);
-      // Keep NPCs out of islands.
+      const fire = stepPirate(n, tx, ty, tz, safe, dt, this.rng, this.npcBlocked);
+      // Last-resort push-out; look-ahead steering should keep NPCs clear.
       const c = this.world.collide(n.x, n.y, n.z, 9);
       if (c) {
         n.x += c.nx * c.depth;
