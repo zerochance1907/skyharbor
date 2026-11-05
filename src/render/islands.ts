@@ -239,8 +239,54 @@ export class IslandRenderer {
     scene.add(this.group);
   }
 
-  setQuality(q: IslandQuality): void {
+  /**
+   * Apply a new quality preset. When mesh detail changes, every island that is
+   * already loaded is rebuilt: far meshes are regenerated in place (so nothing
+   * pops out) and near meshes are dropped and re-queued at the new detail.
+   * Returns the number of islands rebuilt.
+   */
+  setQuality(q: IslandQuality): number {
+    const detailChanged = q.detail !== this.quality.detail;
     this.quality = q;
+    if (!detailChanged) return 0;
+    let rebuilt = 0;
+    for (const c of this.chunks.values()) {
+      for (const e of c.islands) {
+        if (e.far) {
+          e.root.remove(e.far);
+          e.far.geometry.dispose();
+        }
+        e.far = this.buildFar(e.desc);
+        e.root.add(e.far);
+        if (e.near) {
+          e.root.remove(e.near);
+          disposeObject(e.near);
+          e.near = null;
+        }
+        e.nearQueued = false;
+        rebuilt++;
+      }
+    }
+    this.queue.length = 0;
+    return rebuilt;
+  }
+
+  /** Detail level of the far mesh for an island at the current quality. */
+  farSegments(desc: IslandDesc): number {
+    return Math.max(8, Math.round((desc.radius < 30 ? 7 : 14) * this.quality.detail));
+  }
+
+  private buildFar(desc: IslandDesc): THREE.Mesh {
+    const far = new THREE.Mesh(buildIslandGeometry(this.world, desc, desc.radius < 30 ? 2 : 4, this.farSegments(desc)), flatMaterial());
+    far.matrixAutoUpdate = false;
+    return far;
+  }
+
+  /** Loaded islands, for tests and debugging. */
+  loaded(): { desc: IslandDesc; far: THREE.Mesh | null; near: THREE.Object3D | null }[] {
+    const out: { desc: IslandDesc; far: THREE.Mesh | null; near: THREE.Object3D | null }[] = [];
+    for (const c of this.chunks.values()) for (const e of c.islands) out.push({ desc: e.desc, far: e.far, near: e.near });
+    return out;
   }
 
   setHallLit(lit: boolean): void {
@@ -339,9 +385,7 @@ export class IslandRenderer {
     const entry: ChunkEntry = { key, cx, cz, islands: [] };
     for (const desc of this.world.chunkIslands(cx, cz)) {
       const root = new THREE.Group();
-      const segs = Math.max(8, Math.round((desc.radius < 30 ? 7 : 14) * this.quality.detail));
-      const far = new THREE.Mesh(buildIslandGeometry(this.world, desc, desc.radius < 30 ? 2 : 4, segs), flatMaterial());
-      far.matrixAutoUpdate = false;
+      const far = this.buildFar(desc);
       root.add(far);
       const structures = buildStructures(this.world, desc, this.hallLit);
       if (structures) root.add(structures);
