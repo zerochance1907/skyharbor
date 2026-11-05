@@ -42,11 +42,15 @@ export class UI {
   private touchEl: HTMLElement;
   private compassTape: HTMLElement;
 
+  private fade: HTMLElement;
+  private fadeTimer = 0;
+
   constructor(private game: Game) {
     this.root = document.getElementById('ui')!;
     this.hud = this.buildHud();
     this.toasts = h('div', { id: 'toasts' });
-    this.root.append(this.hud, this.toasts);
+    this.fade = h('div', { id: 'fade' });
+    this.root.append(this.hud, this.toasts, this.fade);
     this.radar = this.els.radar as HTMLCanvasElement;
     this.compassTape = this.els.tape;
     this.map = new WorldMap(game, () => this.toggleMap());
@@ -61,6 +65,23 @@ export class UI {
     this.root.append(this.touchEl);
     this.applyTouchVisibility();
     this.showHud(false);
+  }
+
+  /** Snap to black, then fade the world in over `ms`. */
+  fadeFromBlack(ms: number): void {
+    const f = this.fade;
+    f.style.transition = 'none';
+    f.style.opacity = '1';
+    f.classList.add('on');
+    clearTimeout(this.fadeTimer);
+    // Two frames so the black frame is presented before the fade starts.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        f.style.transition = `opacity ${ms}ms ease-out`;
+        f.style.opacity = '0';
+        this.fadeTimer = window.setTimeout(() => f.classList.remove('on'), ms);
+      }),
+    );
   }
 
   // ------------------------------------------------------------ helpers

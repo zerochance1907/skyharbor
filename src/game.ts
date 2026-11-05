@@ -119,6 +119,8 @@ export class Game {
   private currentNow = 0;
   private fps = 60;
   private frameCount = 0;
+  /** Seconds left in an arrival fade; the sim is frozen while chunks settle. */
+  private settle = 0;
   private fpsTime = 0;
   private outOfFuelWarned = false;
   private lowHullWarned = false;
@@ -196,7 +198,6 @@ export class Game {
     this.chase.mode = 'chase';
     this.chase.snap();
     this.islands.setHallLit(s.story.complete);
-    this.islands.warm(new THREE.Vector3(s.ship.x, s.ship.y, s.ship.z), new THREE.Color(0xbfe3f5));
     this.syncMarkers();
     this.paused = false;
     this.ui.hideAllScreens();
@@ -211,6 +212,22 @@ export class Game {
     this.respawnEscorts();
     this.ui.showHud(true);
     this.ui.syncPause();
+    this.arrive();
+  }
+
+  /**
+   * Hide chunk streaming after a jump (new game, load, wreck, teleport): fade
+   * from black, pre-build every island around the ship, compile shaders up
+   * front, and hold the simulation until the fade clears.
+   */
+  arrive(): void {
+    const s = this.state;
+    if (!s) return;
+    this.ui.fadeFromBlack(900);
+    this.islands.warm(new THREE.Vector3(s.ship.x, s.ship.y, s.ship.z), new THREE.Color(0xbfe3f5));
+    this.renderer.renderer.compile(this.renderer.scene, this.renderer.camera);
+    this.settle = 0.6;
+    this.acc = 0;
   }
 
   private clearRuntime(): void {
@@ -657,7 +674,8 @@ export class Game {
     const pad = this.input.pollGamepad();
     this.handleGlobalKeys();
     const s = this.state;
-    if (s && !this.paused && (this.mode === 'play' || this.mode === 'docked')) {
+    if (this.settle > 0) this.settle -= dt;
+    else if (s && !this.paused && (this.mode === 'play' || this.mode === 'docked')) {
       this.acc += dt;
       let steps = 0;
       while (this.acc >= STEP && steps < 6) {
@@ -1103,6 +1121,7 @@ export class Game {
     this.chase.snap();
     this.syncMarkers();
     this.completeDock(port);
+    this.arrive();
   }
 
   // ------------------------------------------------------------------ visuals
@@ -1158,7 +1177,7 @@ export class Game {
     const lit = new THREE.Color(0.97, 0.97, 0.97).multiplyScalar(lerp(1, 0.3, info.night) * (1 - storm * 0.5)).lerp(info.sunColor, 0.3 * (1 - info.night));
     const shadow = lit.clone().multiply(new THREE.Color(0.58, 0.64, 0.8)).lerp(info.horizon, 0.12);
     this.clouds.update(cam, this.time, this.windNow.x, this.windNow.z, lit, shadow, info.horizon, storm, dt);
-    this.islands.update(cam, 4, this.time, info.horizon);
+    this.islands.update(cam, this.settle > 0 ? 24 : 4, this.time, info.horizon);
     updateStructures(this.time, info.night);
     this.birds.update(cam, this.time, info.night);
     this.whales.update(cam, this.time, info.night);
@@ -1317,8 +1336,8 @@ export class Game {
         if (!s) return;
         Object.assign(s.ship, { x, y, z, vx: 0, vy: 0, vz: 0, throttle: 0 });
         if (heading !== undefined) s.ship.heading = heading;
-        this.islands.warm(new THREE.Vector3(x, y, z), new THREE.Color(0xbfe3f5));
         this.chase.snap();
+        this.arrive();
       },
       /** Place the ship just off a port's berth, ready to dock. */
       approach: (port: PortId) => {

@@ -218,3 +218,7 @@ body.touch #fps { top: 340px; }
   .tab { padding: 10px 9px; font-size: 13px; }
   .port-foot .btn { padding: 7px 10px; }
 }
+
+/* Arrival fade that hides chunk streaming after a jump. */
+#fade { position: fixed; inset: 0; background: #0b1220; opacity: 0; pointer-events: none; display: none; z-index: 5; }
+#fade.on { display: block; }
