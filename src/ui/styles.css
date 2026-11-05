@@ -222,3 +222,4 @@ body.touch #fps { top: 340px; }
 /* Arrival fade that hides chunk streaming after a jump. */
 #fade { position: fixed; inset: 0; background: #0b1220; opacity: 0; pointer-events: none; display: none; z-index: 5; }
 #fade.on { display: block; }
+.card.tip { border-left: 3px solid var(--good); margin-bottom: 8px; font-size: 14px; }

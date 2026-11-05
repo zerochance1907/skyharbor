@@ -113,3 +113,19 @@ describe('economy', () => {
       }
   });
 });
+
+describe('nearbyTrade', () => {
+  it('suggests a profitable run to one of the closest ports', async () => {
+    const { nearbyTrade, createMarkets: newMarkets, buyPrice, sellPrice } = await import('../../src/sim/economy');
+    const { PORTS, PORT_BY_ID } = await import('../../src/sim/ports');
+    const m = newMarkets(1907);
+    const tip = nearbyTrade(m, 'skyharbor');
+    expect(tip).not.toBeNull();
+    expect(tip!.margin).toBeGreaterThan(0);
+    expect(sellPrice(tip!.to, tip!.good, m[tip!.to][tip!.good]) - buyPrice('skyharbor', tip!.good, m.skyharbor[tip!.good])).toBe(tip!.margin);
+    const home = PORT_BY_ID.skyharbor;
+    const d = (id: string) => Math.hypot(PORT_BY_ID[id as 'skyharbor'].x - home.x, PORT_BY_ID[id as 'skyharbor'].z - home.z);
+    const nearest3 = PORTS.filter((p) => p.id !== 'skyharbor').map((p) => d(p.id)).sort((a, b) => a - b)[2];
+    expect(d(tip!.to)).toBeLessThanOrEqual(nearest3);
+  });
+});

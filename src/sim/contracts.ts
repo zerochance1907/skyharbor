@@ -50,8 +50,9 @@ export function generateOffers(world: World, port: PortId, day: number, nowHours
   const rng = new Rng(hashInts(world.seed, hashString(port), day, 4040));
   const from = PORT_BY_ID[port];
   const others = PORTS.filter((p) => p.id !== port);
-  const near = others.filter((p) => dist2(p.x, p.z, from.x, from.z) < 3800);
-  const pool = near.length ? near : others;
+  // Destinations come from the closest few ports, so early contracts stay on
+  // routes a new captain can actually fly (1.0 could send you across the map).
+  const pool = [...others].sort((a, b) => dist2(a.x, a.z, from.x, from.z) - dist2(b.x, b.z, from.x, from.z)).slice(0, 4);
   const out: Contract[] = [];
   const count = rng.int(3, 4);
   const kinds: ContractKind[] = rng.shuffle<ContractKind>(['delivery', 'salvage', 'escort', 'ruin', 'delivery']);

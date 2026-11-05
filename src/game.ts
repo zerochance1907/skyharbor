@@ -711,8 +711,39 @@ export class Game {
     if (inp.consume('journal')) this.ui.toggleJournal();
   }
 
+  /**
+   * First-voyage hints: one-off nudges keyed off what the player has done so
+   * far. Each fires once per save (stored as story flags, so old saves load).
+   */
+  private hintTimer = 0;
+  private tickHints(dt: number): void {
+    const s = this.state!;
+    this.hintTimer -= dt;
+    if (this.hintTimer > 0 || s.playTime > 1800) return;
+    this.hintTimer = 1;
+    const once = (id: string, when: boolean, text: string, ms = 9000): boolean => {
+      const key = `hint_${id}`;
+      if (!when || s.story.flags[key]) return false;
+      s.story.flags[key] = true;
+      this.ui.toast(text, 'info', ms);
+      return true;
+    };
+    const k = (a: Parameters<UI['keyFor']>[0]) => this.ui.keyFor(a);
+    const play = this.mode === 'play';
+    const cargo = GOOD_IDS.reduce((n, g) => n + s.cargo[g], 0);
+    const docked = this.mode === 'docked';
+    if (once('compass', play && s.playTime > 8 && s.story.step === 0, `Follow the gold ◆ on your compass to the Skyharbor docks. Slow down near the berth and press ${k('interact')} to dock.`)) return;
+    if (once('market', docked && s.stats.goodsTraded === 0, 'Welcome to port! The Market tab shows a gossip tip for a profitable short hop. Buy low here, sell high there.')) return;
+    if (once('map', play && cargo > 0 && s.playTime > 20, `Hauling cargo? Press ${k('map')} for the chart — ports you have heard of are marked. Fly to one and sell.`)) return;
+    if (once('fuel', play && s.ship.fuel < this.stats.fuelCapacity * 0.35, 'Aether running low. Throttle and climbing burn it; refuel in any port’s Harbor tab.')) return;
+    if (once('hull', play && s.ship.hull < this.stats.maxHull * 0.6, 'Hull damaged. Repair in any port’s Harbor tab, or flee to a port: corsairs give up near harbours.')) return;
+    if (once('upgrade', docked && s.coins >= 300 && s.stats.goodsTraded > 0, 'You can afford an upgrade. The Shipwright tab fits bigger holds, engines, armour and guns.')) return;
+    if (once('contracts', docked && s.stats.goodsTraded >= 6 && s.contracts.active.length === 0, 'The Contracts tab has paid jobs: deliveries, escorts and salvage. They pay well on top of trading.')) return;
+  }
+
   private simulate(dt: number, pad: ReturnType<Input['pollGamepad']>): void {
     const s = this.state!;
+    this.tickHints(dt);
     // Clock, weather, markets.
     s.time += dt * HOURS_PER_SECOND;
     s.playTime += dt;
@@ -1366,6 +1397,8 @@ export class Game {
         }
       },
       islands: () => this.islands.loadedIslands,
+      storyObjective: () => (this.state ? STORY[this.state.story.step].objective : null),
+      landmark: (id: string) => LANDMARK_BY_ID[id],
       seedHash: (s: string) => hashString(s),
     };
   }

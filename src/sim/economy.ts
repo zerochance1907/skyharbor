@@ -193,5 +193,25 @@ export function bestTrade(markets: Markets, from: PortId): { good: GoodId; to: P
   return best;
 }
 
+/**
+ * The most profitable run from `from` to one of its `nearest` neighbouring
+ * ports. Used for beginner tips, so it never suggests a cross-map haul.
+ */
+export function nearbyTrade(markets: Markets, from: PortId, nearest = 3): { good: GoodId; to: PortId; margin: number } | null {
+  const f = PORT_BY_ID[from];
+  const near = PORTS.filter((p) => p.id !== from)
+    .sort((a, b) => Math.hypot(a.x - f.x, a.z - f.z) - Math.hypot(b.x - f.x, b.z - f.z))
+    .slice(0, nearest);
+  let best: { good: GoodId; to: PortId; margin: number } | null = null;
+  for (const g of GOOD_IDS) {
+    const b = buyPrice(from, g, markets[from][g]);
+    for (const p of near) {
+      const margin = sellPrice(p.id, g, markets[p.id][g]) - b;
+      if (margin > 0 && (!best || margin > best.margin)) best = { good: g, to: p.id, margin };
+    }
+  }
+  return best;
+}
+
 export const FUEL_PRICE = 2;
 export const REPAIR_PRICE = 1.5;

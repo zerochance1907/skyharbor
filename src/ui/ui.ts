@@ -6,7 +6,7 @@ import type { Game } from '../game';
 import { clamp, formatCoins, headingToDegrees, TAU } from '../core/math';
 import { ACTION_LABELS, DEFAULT_BINDINGS, keyLabel, type Action } from '../input/settings';
 import { BIOMES } from '../sim/biomes';
-import { bestTrade, buyPrice, maxAffordable, sellPrice, unitPrice } from '../sim/economy';
+import { bestTrade, buyPrice, maxAffordable, nearbyTrade, sellPrice, unitPrice } from '../sim/economy';
 import { GOODS, GOOD_BY_ID, type GoodId } from '../sim/goods';
 import { LANDMARK_BY_ID, PORTS, PORT_BY_ID, type PortId } from '../sim/ports';
 import { SLOTS, type SlotId } from '../sim/save';
@@ -673,7 +673,11 @@ export class UI {
         ),
       );
     });
+    const tip = nearbyTrade(st.markets, port);
     body.append(
+      ...(tip && tip.margin >= 4
+        ? [h('div', { class: 'card tip', 'data-testid': 'trade-tip' }, `\u{1F4A1} Harbour gossip: ${GOOD_BY_ID[tip.good].name} bought here sells for about ${tip.margin} coin more each at ${PORT_BY_ID[tip.to].name}, a short hop away.`)]
+        : []),
       h('p', { class: 'muted' }, 'Green prices are cheap here, red are dear. Each trade moves the price. Markets drift by the hour.'),
       h('table', { class: 'market' }, h('thead', {}, h('tr', {}, h('th', {}, 'Good'), h('th', { class: 'num' }, 'Stock'), h('th', { class: 'num' }, 'Buy'), h('th', { class: 'num' }, 'Sell'), h('th', { class: 'num' }, 'Hold'), h('th', {}, ''))), h('tbody', {}, ...rows)),
     );
